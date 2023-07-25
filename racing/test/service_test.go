@@ -28,7 +28,7 @@ func TestListRaces_VisibilityFilter(t *testing.T) {
 	}
 
 	// Get races
-	races, err := repo.List(reqFilter)
+	races, err := repo.List(reqFilter, "")
 
 	// Assert that there was no error
 	assert.NoError(t, err)
@@ -59,7 +59,7 @@ func TestListRaces_No_VisibilityFilter(t *testing.T) {
 	}
 
 	// Get races
-	races, err := repo.List(reqFilter)
+	races, err := repo.List(reqFilter, "")
 
 	// Assert that there was no error
 	assert.NoError(t, err)
@@ -70,5 +70,38 @@ func TestListRaces_No_VisibilityFilter(t *testing.T) {
 	// Assert that it returns all races regardless of the visiblity
 	for _, race := range races {
 		assert.NotNil(t, race)
+	}
+}
+
+// Test list races with ORDER BY advertised_start_time
+func TestListRaces_OrderByAdvertisedStartTime(t *testing.T) {
+	database, err := sql.Open("sqlite3", ":memory:")
+	assert.NoError(t, err)
+	defer database.Close()
+
+	repo := db.NewRacesRepo(database)
+
+	// Setup memory data
+	err = repo.Init()
+	assert.NoError(t, err)
+
+	reqFilter := &racing.ListRacesRequestFilter{
+		Visibility: &racing.ListRacesRequestFilter_Visible{},
+	}
+
+	// Get races
+	races, err := repo.List(reqFilter, "advertised_start_time")
+
+	// Assert that there was no error
+	assert.NoError(t, err)
+
+	// Assert that the result slice is not empty
+	assert.NotEmpty(t, races)
+
+	// Database ORDER BY ASC by default
+	// So assert that if races are ordered by advertised_start_time correctly
+	// race[i] time should >= race[i-1] time
+	for i := 1; i < len(races); i++ {
+		assert.True(t, races[i].AdvertisedStartTime.Seconds >= races[i-1].AdvertisedStartTime.Seconds)
 	}
 }
