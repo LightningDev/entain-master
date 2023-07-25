@@ -2,6 +2,7 @@ package db
 
 const (
 	racesList = "list"
+	raceByID  = "byID" // const for query a single race by id.
 )
 
 func getRaceQueries() map[string]string {
@@ -20,6 +21,21 @@ func getRaceQueries() map[string]string {
 					ELSE 'OPEN'
 				END as status
 			FROM races
+		`,
+		raceByID: `
+			SELECT 
+					id, 
+					meeting_id, 
+					name, 
+					number, 
+					visible, 
+					advertised_start_time,
+					CASE
+						WHEN advertised_start_time <= datetime('now') THEN 'CLOSED'
+						ELSE 'OPEN'
+					END as status
+				FROM races
+				WHERE id = ? 
 		`,
 	}
 }
