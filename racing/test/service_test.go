@@ -5,6 +5,7 @@ import (
 	"git.neds.sh/matty/entain/racing/db"
 	"git.neds.sh/matty/entain/racing/proto/racing"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -138,4 +139,33 @@ func TestListRaces_Status(t *testing.T) {
 			assert.Equal(t, "OPEN", race.Status)
 		}
 	}
+}
+
+// Test GetRace to return a single race
+func TestGetRace_GetByID(t *testing.T) {
+	database, err := sql.Open("sqlite3", ":memory:")
+	assert.NoError(t, err)
+	defer database.Close()
+
+	repo := db.NewRacesRepo(database)
+
+	// Setup memory data
+	err = repo.Init()
+	assert.NoError(t, err)
+
+	// Random id from 1-100 in seed data
+	rand.Seed(time.Now().UnixNano())
+	randomID := int64(rand.Intn(100) + 1)
+
+	// Get race
+	race, err := repo.GetByID(randomID)
+
+	// Assert that there was no error
+	assert.NoError(t, err)
+
+	// Assert that the result slice is not empty
+	assert.NotNil(t, race)
+
+	// Assert that it returns a race with id equal to randomID
+	assert.Equal(t, randomID, race.Id)
 }
