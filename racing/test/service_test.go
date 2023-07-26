@@ -1,12 +1,12 @@
 package service_test
 
 import (
-	"testing"
-
 	"database/sql"
 	"git.neds.sh/matty/entain/racing/db"
 	"git.neds.sh/matty/entain/racing/proto/racing"
 	"github.com/stretchr/testify/assert"
+	"testing"
+	"time"
 )
 
 // Test list races with visiblity filter
@@ -103,5 +103,39 @@ func TestListRaces_OrderByAdvertisedStartTime(t *testing.T) {
 	// race[i] time should >= race[i-1] time
 	for i := 1; i < len(races); i++ {
 		assert.True(t, races[i].AdvertisedStartTime.Seconds >= races[i-1].AdvertisedStartTime.Seconds)
+	}
+}
+
+// Test list races with status based on advertised_start_time
+func TestListRaces_Status(t *testing.T) {
+	database, err := sql.Open("sqlite3", ":memory:")
+	assert.NoError(t, err)
+	defer database.Close()
+
+	repo := db.NewRacesRepo(database)
+
+	// Setup memory data
+	err = repo.Init()
+	assert.NoError(t, err)
+
+	reqFilter := &racing.ListRacesRequestFilter{}
+
+	// Get races
+	races, err := repo.List(reqFilter, "")
+
+	// Assert that there was no error
+	assert.NoError(t, err)
+
+	// Assert that the result slice is not empty
+	assert.NotEmpty(t, races)
+
+	// Verify the status of each race based on the advertised_start_time
+	currentTime := time.Now().Unix()
+	for _, race := range races {
+		if race.AdvertisedStartTime.Seconds <= currentTime {
+			assert.Equal(t, "CLOSED", race.Status)
+		} else {
+			assert.Equal(t, "OPEN", race.Status)
+		}
 	}
 }
