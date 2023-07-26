@@ -16,7 +16,7 @@ func getEventQueries() map[string]string {
 				sport,
 				advertised_start_time,
 				CASE
-					WHEN advertised_start_time <= datetime('now') THEN 'CLOSED'
+					WHEN datetime(advertised_start_time) <= datetime('now') THEN 'CLOSED'
 					ELSE 'OPEN'
 				END as status
 			FROM events
@@ -29,7 +29,7 @@ func getEventQueries() map[string]string {
 				sport,
 				advertised_start_time,
 				CASE
-					WHEN advertised_start_time <= datetime('now') THEN 'CLOSED'
+					WHEN datetime(advertised_start_time) <= datetime('now') THEN 'CLOSED'
 					ELSE 'OPEN'
 				END as status
 			FROM events WHERE id = ?
