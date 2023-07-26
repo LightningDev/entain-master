@@ -1,93 +1,101 @@
 package service_test
 
 import (
-	"context"
+	"database/sql"
+	"math/rand"
 	"testing"
 	"time"
 
+	"github.com/LightningDev/entain-master/sports/db"
 	"github.com/LightningDev/entain-master/sports/proto/sports"
-	"github.com/LightningDev/entain-master/sports/service"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/stretchr/testify/assert"
 )
 
-// MockEventsRepo is a mock implementation of the db.EventsRepo interface.
-type MockEventsRepo struct{}
+// Test list all events should returns all available events
+func TestListSports_ListEvents(t *testing.T) {
+	database, err := sql.Open("sqlite3", ":memory:")
+	assert.NoError(t, err)
+	defer database.Close()
 
-func (m *MockEventsRepo) List(filter *sports.ListEventsRequestFilter, orderBy string) ([]*sports.Event, error) {
-	// Return hardcoded data instead of querying a database.
-	ts, _ := ptypes.TimestampProto(time.Now())
-	return []*sports.Event{
-		{
-			Id:                  1,
-			Name:                "Mock Event 1",
-			Location:            "Brisbane",
-			Sport:               "Bear Fighting",
-			AdvertisedStartTime: ts,
-			Status:              "Open",
-		},
-	}, nil
-}
+	repo := db.NewEventsRepo(database)
 
-// Don't need Init in our mock implementation.
-func (m *MockEventsRepo) Init() error {
-	return nil
-}
+	// Setup memory data
+	err = repo.Init()
+	assert.NoError(t, err)
 
-func (m *MockEventsRepo) GetByID(id int64) (*sports.Event, error) {
-	// Return hardcoded data instead of querying a database.
-	ts, _ := ptypes.TimestampProto(time.Now())
-	return &sports.Event{
-		Id:                  1,
-		Name:                "Mock Event 1",
-		Location:            "Brisbane",
-		Sport:               "Bear Fighting",
-		AdvertisedStartTime: ts,
-		Status:              "Open",
-	}, nil
-}
+	reqFilter := &sports.ListEventsRequestFilter{}
 
-func TestListEvents(t *testing.T) {
-	repo := &MockEventsRepo{}
-	s := service.NewSportsService(repo)
+	// Get events
+	events, err := repo.List(reqFilter, "")
 
-	req := &sports.ListEventsRequest{
-		Filter: &sports.ListEventsRequestFilter{
-			Name:     "Mock Event 1",
-			Location: "Brisbane",
-			Sport:    "Bear Fighting",
-		},
-		OrderBy: "advertised_start_time",
+	// Assert that there was no error
+	assert.NoError(t, err)
+
+	// Assert that the result slice is not empty
+	assert.NotEmpty(t, events)
+
+	// Assert that all returned sports are visible
+	for _, event := range events {
+		assert.NotNil(t, event)
 	}
-
-	events, err := s.ListEvents(context.Background(), req)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-
-	assert.Equal(t, 1, len(events.Events), "Expected only one event")
-	assert.Equal(t, int64(1), events.Events[0].Id)
-	assert.Equal(t, "Mock Event 1", events.Events[0].Name)
-	assert.Equal(t, "Brisbane", events.Events[0].Location)
-	assert.Equal(t, "Bear Fighting", events.Events[0].Sport)
-	assert.Equal(t, "Open", events.Events[0].Status)
 }
 
-func TestGetEvent(t *testing.T) {
-	repo := &MockEventsRepo{}
-	s := service.NewSportsService(repo)
+// Test list events with ORDER BY advertised_start_time
+func TestListSports_OrderByAdvertisedStartTime(t *testing.T) {
+	database, err := sql.Open("sqlite3", ":memory:")
+	assert.NoError(t, err)
+	defer database.Close()
 
-	req := &sports.GetEventRequest{Id: 1}
+	repo := db.NewEventsRepo(database)
 
-	event, err := s.GetEvent(context.Background(), req)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	// Setup memory data
+	err = repo.Init()
+	assert.NoError(t, err)
+
+	reqFilter := &sports.ListEventsRequestFilter{}
+
+	// Get events
+	events, err := repo.List(reqFilter, "advertised_start_time")
+
+	// Assert that there was no error
+	assert.NoError(t, err)
+
+	// Assert that the result slice is not empty
+	assert.NotEmpty(t, events)
+
+	// Database ORDER BY ASC by default
+	// So assert that if events are ordered by advertised_start_time correctly
+	// events[i] time should >= events[i-1] time
+	for i := 1; i < len(events); i++ {
+		assert.True(t, events[i].AdvertisedStartTime.Seconds >= events[i-1].AdvertisedStartTime.Seconds)
 	}
+}
 
-	assert.NotNil(t, event.Event, "Expected event not to be nil")
-	assert.Equal(t, int64(1), event.Event.Id)
-	assert.Equal(t, "Mock Event 1", event.Event.Name)
-	assert.Equal(t, "Brisbane", event.Event.Location)
-	assert.Equal(t, "Bear Fighting", event.Event.Sport)
-	assert.Equal(t, "Open", event.Event.Status)
+// Test GetSport to return a single event
+func TestGetSport_GetByID(t *testing.T) {
+	database, err := sql.Open("sqlite3", ":memory:")
+	assert.NoError(t, err)
+	defer database.Close()
+
+	repo := db.NewEventsRepo(database)
+
+	// Setup memory data
+	err = repo.Init()
+	assert.NoError(t, err)
+
+	// Random id from 1-100 in seed data
+	rand.Seed(time.Now().UnixNano())
+	randomID := int64(rand.Intn(100) + 1)
+
+	// Get sport
+	sport, err := repo.GetByID(randomID)
+
+	// Assert that there was no error
+	assert.NoError(t, err)
+
+	// Assert that the result slice is not empty
+	assert.NotNil(t, sport)
+
+	// Assert that it returns a sport with id equal to randomID
+	assert.Equal(t, randomID, sport.Id)
 }
