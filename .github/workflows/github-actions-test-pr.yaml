@@ -1,0 +1,39 @@
+name: Go gRPC/Protobuf build and test API
+
+on: [push]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.16'
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Install Protoc
+        run: |
+          curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protoc-3.17.3-linux-x86_64.zip
+          sudo unzip protoc-3.17.3-linux-x86_64.zip -d /usr/local bin/protoc
+          sudo unzip protoc-3.17.3-linux-x86_64.zip -d /usr/local 'include/*'
+
+      - name: Build Protos and Generate Code in API Service
+        run: |
+          cd api
+          go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 google.golang.org/genproto/googleapis/api google.golang.org/grpc/cmd/protoc-gen-go-grpc google.golang.org/protobuf/cmd/protoc-gen-go
+          go generate ./...
+          go build -v ./...
+
+      - name: Build Protos and Generate Code in Racing Service
+        run: |
+          cd racing
+          go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 google.golang.org/genproto/googleapis/api google.golang.org/grpc/cmd/protoc-gen-go-grpc google.golang.org/protobuf/cmd/protoc-gen-go
+          go generate ./...
+          go build -v ./...
+          go test -v ./test
+          
